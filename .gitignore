@@ -1,0 +1,34 @@
+# Python environments and generated files
+/env/
+/.venv/
+/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local Django databases
+*.sqlite3
+*.sqlite3-*
+
+# Node dependencies and build output
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Local configuration and logs
+.env
+.env.*
+!.env.example
+!.env.sample
+*.log
+
+# Recoverable Git metadata from repository consolidation
+/.repo-backups/
+
+# Operating system files
+.DS_Store
+Thumbs.db
