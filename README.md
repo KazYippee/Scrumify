@@ -9,7 +9,6 @@ The project uses one Git repository:
 
 Use Python 3.14, Node.js 22, Git, and PowerShell.
 
-On WSL, use Python 3.14, Node.js 22, Git, and the Ubuntu terminal.
 
 ## Start the Django server
 
@@ -23,31 +22,14 @@ python -m venv env
 .\env\Scripts\python.exe manage.py migrate
 .\env\Scripts\python.exe manage.py runserver
 ```
+The commands above to the following 
+- Create virtual env
+- Install dependencies
+- Apply database migrations
+- Starts development server
 
 Open [the Django admin page](http://127.0.0.1:8000/admin/).
 
-## Start the Django server on WSL
-
-Open the Ubuntu terminal in the project folder.
-
-If Python 3.14 is not installed, use these commands first:
-
-```bash
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install python3.14 python3.14-venv
-```
-
-Use these commands:
-
-```bash
-python3.14 -m venv env
-env/bin/python -m pip install Django==6.1.2 djangorestframework==3.18.3 django-cors-headers==4.9.0
-env/bin/python manage.py migrate
-env/bin/python manage.py runserver
-```
-
-Open [the Django admin page](http://127.0.0.1:8000/admin/).
 
 ## Make an admin account
 
