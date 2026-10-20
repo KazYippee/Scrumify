@@ -1,69 +1,96 @@
-import Image from "next/image";
+// Allow React state and browser interactions, such as clicks and confirmation dialogs.
+"use client";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+import { useEffect, useState } from "react";
+
+// Data we expect to receive from the server (DJANGO)
+type Chore = { id: number; description: string };
+
+
+export default function Home() { // Data and behavior of the component are defined here
+  // useState remembers data between renders. Each pair contains the current value
+  // and a setter: setChores(newList) updates chores and tells React to redraw the page.
+  const [chores, setChores] = useState<Chore[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Django checks this token when we send a deletion request.
+  const [csrfToken, setCsrfToken] = useState("");
+  const [loading, setLoading] = useState(true);
+  // Store the ID being deleted, null means no deletion is in progress.
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [error, setError] = useState("");
+  // Find looks for the chosen ID. ?? uses the first chore if no match is found.
+  const selectedChore = chores.find((chore) => chore.id === selectedId) ?? chores[0];
+
+  // Load chores from DJANGO. The empty [] means no dependencies.
+  useEffect(() => {
+    fetch("/api/chores/")
+      .then(async (response) => {
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        setChores(data.chores);
+        setCsrfToken(data.csrfToken);
+      })
+      .catch(() => setError("Could not load chores."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function deleteChore(chore: Chore) {
+    // Ask for confirmation before deleting. If the user clicks Cancel, return early.
+    if (!window.confirm(`Delete "${chore.description}"? This cannot be undone.`))
+      {  
+        return;
+      }
+    setDeleting(chore.id);
+    setError("");
+    try {
+      // ${chore.id} inserts the selected ID into the URL, for example /api/chores/4/.
+      const response = await fetch(`/api/chores/${chore.id}/`, {
+        method: "DELETE",
+        headers: { "X-CSRFToken": csrfToken },
+      });
+      if (!response.ok) throw new Error();
+      // setter function, returns a new list without the deleted chore.
+      setChores((current) => current.filter((item) => item.id !== chore.id));
+    } catch {
+      setError("Could not delete chore. Please try again.");
+    } finally {
+      // Re-enable the controls after either success or failure.
+      setDeleting(null);
+    }
+  }
+
+  // The visible part of the component is defined here, which is what the user sees and interacts with
+  // This is JSX: HTML-like tags with JavaScript expressions inside {braces}.
+  // className is React's spelling of HTML's class attribute; these classes add styling.
+  return ( 
+    <main className="p-4">
+      {loading && <p>Loading chores...</p>}
+      {error && <p role="alert">{error}</p>}
+      {!loading && !error && chores.length === 0 && <p>No chores.</p>}
+      {/* Show the dropdown only when chores exist. value controls its selection;
+          onChange saves the selected ID. Number converts the form's text value to a number.
+          selectedChore?.id safely reads the ID even when selectedChore is undefined. */}
+      {chores.length > 0 && (
+        <select
+          aria-label="Chore to delete"
+          value={selectedChore?.id ?? ""}
+          onChange={(event) => setSelectedId(Number(event.target.value))}
+          disabled={deleting !== null}
+          className="mr-3 border p-1"
+        >
+          {/* map creates one option per chore. key gives React a stable ID to track
+              each option, value is the ID, while the description is the visible label. */}
+          {chores.map((chore) => <option key={chore.id} value={chore.id}>{chore.description}</option>)}
+        </select>
+      )}
+    
+      <button
+        className="rounded border px-3 py-1 disabled:opacity-50"
+        disabled={!selectedChore || deleting !== null}
+        onClick={() => selectedChore && deleteChore(selectedChore)}
+      >
+        Delete chore
+      </button>
+    </main>
   );
 }

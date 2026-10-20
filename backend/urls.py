@@ -16,7 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from backend.api import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Route API requests to Python views. These return data, not HTML pages.
+    path("api/chores/", views.chore_list, name="chore-list"),
+    # <int:pk> captures a numeric chore ID and passes it to chore_delete(request, pk).
+    path("api/chores/<int:pk>/", views.chore_delete, name="chore-delete"),
 ]
