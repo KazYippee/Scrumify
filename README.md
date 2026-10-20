@@ -90,13 +90,21 @@ Open [the Next.js application](http://localhost:3000).
 ## Current condition
 
 The Django server stores chores.
-Each chore has a description, due date, status, and points.
-Chores can be added on the Django admin page.
-The Next.js application shows every chore.
+Each chore has a description, due date, status, points, and an owner.
+The owner is the account that the chore belongs to.
+Accounts and chores can be added on the Django admin page.
+Pick an owner for each chore on the Django admin page.
+
+The Next.js application asks you to sign in with your account.
+After you sign in, it shows only your chores.
 A chore can be edited in the Next.js application with the Edit button.
+You cannot see or change chores that belong to another account.
 
 The Django server has these API routes:
 
-- `GET /api/chores/`: list every chore.
-- `GET /api/chores/<id>/`: get one chore.
-- `PUT /api/chores/<id>/`: change one chore.
+- `POST /api/login/`: sign in with a username and password and get a token.
+- `GET /api/chores/`: list your chores.
+- `GET /api/chores/<id>/`: get one of your chores.
+- `PUT /api/chores/<id>/`: change one of your chores.
+
+Every chore route needs the header `Authorization: Token <your token>`.

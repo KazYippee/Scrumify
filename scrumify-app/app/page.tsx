@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const API_URL = "http://127.0.0.1:8000/api/chores/";
+const API_URL = "http://127.0.0.1:8000/api/";
 
 type Chore = {
   id: number;
@@ -19,6 +19,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function Home() {
+  const [token, setToken] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [chores, setChores] = useState<Chore[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({
@@ -29,13 +32,60 @@ export default function Home() {
   });
   const [error, setError] = useState("");
 
-  // Load all chores from the server when the page first opens
+  // When the page opens, check if the user signed in before
   useEffect(() => {
-    fetch(API_URL)
-      .then((response) => response.json())
-      .then((data) => setChores(data))
-      .catch(() => setError("Could not load chores. Is the Django server running?"));
+    const savedToken = localStorage.getItem("token");
+    if (savedToken) {
+      loadChores(savedToken);
+    }
+    // The empty [] means this only runs once, when the page opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Get the signed-in user's chores from the server
+  function loadChores(userToken: string) {
+    fetch(API_URL + "chores/", {
+      headers: { Authorization: "Token " + userToken },
+    })
+      .then((response) => {
+        if (response.status === 401) {
+          // The saved token no longer works, so sign out
+          logOut();
+          return;
+        }
+        return response.json().then((data) => {
+          setToken(userToken);
+          setChores(data);
+        });
+      })
+      .catch(() => setError("Could not load chores. Is the Django server running?"));
+  }
+
+  async function logIn() {
+    const response = await fetch(API_URL + "login/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: username, password: password }),
+    });
+
+    if (!response.ok) {
+      setError("Wrong username or password.");
+      return;
+    }
+
+    const data = await response.json();
+    localStorage.setItem("token", data.token);
+    loadChores(data.token);
+    setPassword("");
+    setError("");
+  }
+
+  function logOut() {
+    localStorage.removeItem("token");
+    setToken("");
+    setChores([]);
+    setEditingId(null);
+  }
 
   function startEditing(chore: Chore) {
     setEditingId(chore.id);
@@ -54,9 +104,12 @@ export default function Home() {
   }
 
   async function saveChore(id: number) {
-    const response = await fetch(API_URL + id + "/", {
+    const response = await fetch(API_URL + "chores/" + id + "/", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Token " + token,
+      },
       body: JSON.stringify(form),
     });
 
@@ -72,9 +125,49 @@ export default function Home() {
     setError("");
   }
 
+  if (!token) {
+    return (
+      <main className="mx-auto w-full max-w-2xl p-8">
+        <h1 className="mb-6 text-3xl font-bold">Sign in</h1>
+
+        {error && <p className="mb-4 text-red-600">{error}</p>}
+
+        <div className="flex flex-col gap-2">
+          <label>
+            Username
+            <input
+              className="ml-2 border px-1"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </label>
+          <label>
+            Password
+            <input
+              className="ml-2 border px-1"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          <div>
+            <button className="rounded border px-3 py-1" onClick={logIn}>
+              Sign in
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-2xl p-8">
-      <h1 className="mb-6 text-3xl font-bold">Chores</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold">My Chores</h1>
+        <button className="rounded border px-3 py-1" onClick={logOut}>
+          Sign out
+        </button>
+      </div>
 
       {error && <p className="mb-4 text-red-600">{error}</p>}
 
