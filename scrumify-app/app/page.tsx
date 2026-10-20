@@ -1,69 +1,153 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+
+const API_URL = "http://127.0.0.1:8000/api/chores/";
+
+type Chore = {
+  id: number;
+  description: string;
+  due_date: string;
+  status: string;
+  points: number;
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  todo: "To Do",
+  in_progress: "In Progress",
+  done: "Done",
+};
 
 export default function Home() {
+  const [chores, setChores] = useState<Chore[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    description: "",
+    due_date: "",
+    status: "todo",
+    points: 0,
+  });
+  const [error, setError] = useState("");
+
+  // Load all chores from the server when the page first opens
+  useEffect(() => {
+    fetch(API_URL)
+      .then((response) => response.json())
+      .then((data) => setChores(data))
+      .catch(() => setError("Could not load chores. Is the Django server running?"));
+  }, []);
+
+  function startEditing(chore: Chore) {
+    setEditingId(chore.id);
+    setForm({
+      description: chore.description,
+      due_date: chore.due_date,
+      status: chore.status,
+      points: chore.points,
+    });
+    setError("");
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setError("");
+  }
+
+  async function saveChore(id: number) {
+    const response = await fetch(API_URL + id + "/", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+
+    if (!response.ok) {
+      setError("Could not save the chore. Check that every field is filled in.");
+      return;
+    }
+
+    // Swap the old chore in the list for the updated one the server sent back
+    const updatedChore = await response.json();
+    setChores(chores.map((chore) => (chore.id === id ? updatedChore : chore)));
+    setEditingId(null);
+    setError("");
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto w-full max-w-2xl p-8">
+      <h1 className="mb-6 text-3xl font-bold">Chores</h1>
+
+      {error && <p className="mb-4 text-red-600">{error}</p>}
+
+      {chores.length === 0 && !error && (
+        <p>No chores yet. Add some on the Django admin page.</p>
+      )}
+
+      <ul className="flex flex-col gap-4">
+        {chores.map((chore) => (
+          <li key={chore.id} className="rounded border p-4">
+            {editingId === chore.id ? (
+              <div className="flex flex-col gap-2">
+                <label>
+                  Description
+                  <input
+                    className="ml-2 border px-1"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Due date
+                  <input
+                    className="ml-2 border px-1"
+                    type="date"
+                    value={form.due_date}
+                    onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Status
+                  <select
+                    className="ml-2 border px-1"
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  >
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                </label>
+                <label>
+                  Points
+                  <input
+                    className="ml-2 border px-1"
+                    type="number"
+                    value={form.points}
+                    onChange={(e) => setForm({ ...form, points: Number(e.target.value) })}
+                  />
+                </label>
+                <div className="flex gap-2">
+                  <button className="rounded border px-3 py-1" onClick={() => saveChore(chore.id)}>
+                    Save
+                  </button>
+                  <button className="rounded border px-3 py-1" onClick={cancelEditing}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="font-semibold">{chore.description}</p>
+                <p>Due: {chore.due_date}</p>
+                <p>Status: {STATUS_LABELS[chore.status]}</p>
+                <p>Points: {chore.points}</p>
+                <button className="mt-2 rounded border px-3 py-1" onClick={() => startEditing(chore)}>
+                  Edit
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </main>
   );
 }
