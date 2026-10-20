@@ -50,6 +50,35 @@ class ChoreTests(TestCase):
         self.assertEqual(str(chore), "Do laundry")
 
 
+class ChoreCreateTests(TestCase):
+    def test_create_list_and_delete_share_routes(self):
+        self.assertEqual(reverse("chore-create"), reverse("chore-list"))
+        client = Client(enforce_csrf_checks=True)
+        token = client.get(reverse("chore-list")).json()["csrfToken"]
+        response = client.post(reverse("chore-create"), {
+            "description": "Take out recycling",
+            "due_date": "2026-10-21",
+            "status": "todo",
+            "points": 3,
+        }, content_type="application/json", HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 201)
+        chore_id = response.json()["id"]
+        self.assertEqual(client.get(reverse("chore-list")).json()["chores"], [
+            {"id": chore_id, "description": "Take out recycling"}
+        ])
+        response = client.delete(reverse("chore-delete", args=[chore_id]),
+                                 HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Chore.objects.filter(pk=chore_id).exists())
+
+    def test_create_rejects_invalid_chore(self):
+        response = self.client.post(reverse("chore-create"), {
+            "description": "Missing due date",
+        }, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Chore.objects.count(), 0)
+
+
 class ChoreDeleteTests(TestCase):
     def setUp(self):
         self.chore = Chore.objects.create(

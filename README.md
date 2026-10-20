@@ -9,8 +9,9 @@ The project uses one Git repository:
 
 Use Python 3.14, Node.js 22, Git, and PowerShell.
 
+## Installation/Setup: Windows
 
-## Start the Django server
+### Start the Django server
 
 Open PowerShell in the project folder.
 
@@ -30,8 +31,7 @@ The commands above to the following
 
 Open [the Django admin page](http://127.0.0.1:8000/admin/).
 
-
-## Make an admin account
+### Make an admin account
 
 Use this command in PowerShell:
 
@@ -45,7 +45,7 @@ Use this command on WSL:
 env/bin/python manage.py createsuperuser
 ```
 
-## Run the Django tests
+### Run the Django tests
 
 Use this command in PowerShell:
 
@@ -59,7 +59,7 @@ Use this command on WSL:
 env/bin/python manage.py test backend.api
 ```
 
-## Start the Next.js application
+### Start the Next.js application
 
 Open a second PowerShell window in the project folder.
 
@@ -73,13 +73,71 @@ npm run dev
 
 Open [the Next.js application](http://localhost:3000).
 
-## Start the Next.js application on WSL
+### Start the Next.js application on WSL
 
 Open a second Ubuntu terminal in the project folder.
 
 Use these commands:
 
 ```bash
+cd scrumify-app
+npm ci
+npm run dev
+```
+
+Open [the Next.js application](http://localhost:3000).
+
+## Installation/Setup: Mac Users
+
+This installation process requires homebrew. If it is not installed yet, run the following command in the terminal: 
+
+```homebrew
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Install required software tools:
+
+```terminal
+brew install python@3.14 node@22 git
+```
+
+Now cd into the directory you want Scrumify in on your computer; clone the repo:
+
+```terminal
+git clone https://github.com/greinermachine/Scrumify.git
+```
+
+### Start Django Server
+
+Create environment with the correct python:
+
+```
+python3.14 -m venv scrumifyEnv
+./scrumifyEnv/bin/python -m pip install Django==6.1.2 djangorestframework==3.18.3 django-cors-headers==4.9.0
+./scrumifyEnv/bin/python manage.py migrate
+./scrumifyEnv/bin/python manage.py runserver
+```
+
+You are now in the Django server. Keep this terminal window running, and open [the Django admin page](http://127.0.0.1:8000/admin/). 
+
+### 
+In a second terminal window, cd back into your Scrumify directory, and run:
+
+```
+./scrumifyEnv/bin/python manage.py createsuperuser
+```
+
+Enter your username, email, and password.
+
+### Run Django Tests
+
+```
+./scrumifyEnv/bin/python manage.py test backend.api
+```
+
+### Start Next.js Application
+
+```
 cd scrumify-app
 npm ci
 npm run dev
@@ -95,4 +153,4 @@ Chores can be added and changed on the Django admin page.
 Run both servers. Open http://localhost:3000 to view chores and select Delete chore.
 Confirm deletion or select Cancel to keep the chore.
 Next.js sends API requests to Django through its `/api/` proxy.
-Django provides `GET /api/chores/` and `DELETE /api/chores/<id>/`.
+Django provides `GET /api/chores/`, `POST /api/chores/`, and `DELETE /api/chores/<id>/`.

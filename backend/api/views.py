@@ -2,8 +2,10 @@ from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods, require_safe
+from rest_framework import generics
 
 from .models import Chore
+from .serializers import ChoreSerializer
 
 
 # Decorators restrict which HTTP methods a view accepts, this allows GET and HEAD.
@@ -15,6 +17,14 @@ def chore_list(request):
         "chores": list(Chore.objects.order_by("id").values("id", "description")),
         "csrfToken": get_token(request),
     })
+
+
+class createChoreView(generics.CreateAPIView):
+    queryset = Chore.objects.all()
+    serializer_class = ChoreSerializer
+
+    def get(self, request, *args, **kwargs):
+        return chore_list(request)
 
 
 @require_http_methods(["DELETE"])
