@@ -150,5 +150,10 @@ Open [the Next.js application](http://localhost:3000).
 The Django server stores chores.
 Each chore has a description, due date, status, and points.
 Chores can be added and changed on the Django admin page.
-The Django server has no API routes.
-The Next.js application does not send data to the Django server.
+Run both servers. Open http://localhost:3000 to view saved chores.
+The list shows each chore's description, due date, status, and points.
+Chores saved through the API or admin page appear when you return to the app.
+Select Refresh chores to load changes while the app stays open.
+Reopening the app loads saved chores from the Django database.
+Next.js sends API requests to Django through its `/api/` proxy.
+Django provides `GET /api/chores/` and `POST /api/chores/`.
