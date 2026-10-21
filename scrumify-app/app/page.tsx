@@ -1,69 +1,117 @@
-import Image from "next/image";
+// Allow React state and browser interactions, such as refresh button clicks.
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+
+// Data we expect to receive from the server (DJANGO)
+type Chore = {
+  id: number;
+  description: string;
+  due_date: string;
+  status: "todo" | "in_progress" | "done";
+  points: number;
+};
+
+const statusLabels = {
+  todo: "To Do",
+  in_progress: "In Progress",
+  done: "Done",
+};
+
+
+export default function Home() { // Data and behavior of the component are defined here
+  // useState remembers data between renders. Each pair contains the current value
+  // and a setter: setChores(newList) updates chores and tells React to redraw the page.
+  const [chores, setChores] = useState<Chore[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [error, setError] = useState("");
+
+  // Read saved chores on opening the app and when returning from the admin/API.
+  useEffect(() => {
+    let active = true;
+    let controller: AbortController | undefined;
+
+    async function loadChores() {
+      controller?.abort();
+      const requestController = new AbortController();
+      controller = requestController;
+      try {
+        const response = await fetch("/api/chores/", {
+          cache: "no-store",
+          signal: requestController.signal,
+        });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        if (!active || requestController.signal.aborted) return;
+        setChores(data.chores);
+        setError("");
+      } catch (error) {
+        if (active && !(error instanceof DOMException && error.name === "AbortError")) {
+          setError("Could not load chores. Select Refresh chores to try again.");
+        }
+      } finally {
+        if (active && !requestController.signal.aborted) setLoading(false);
+      }
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") void loadChores();
+    }
+
+    void loadChores();
+    window.addEventListener("focus", loadChores);
+    window.addEventListener("pageshow", loadChores);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.removeEventListener("focus", loadChores);
+      window.removeEventListener("pageshow", loadChores);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshVersion]);
+
+  // The visible part of the component is defined here, which is what the user sees and interacts with
+  // This is JSX: HTML-like tags with JavaScript expressions inside {braces}.
+  // className is React's spelling of HTML's class attribute; these classes add styling.
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Current chores</h1>
+        <button
+          onClick={() => setRefreshVersion((current) => current + 1)}
+          className="rounded border px-3 py-1"
+        >
+          Refresh chores
+        </button>
+      </div>
+      {loading && <p>Loading chores...</p>}
+      {error && <p role="alert">{error}</p>}
+      {!loading && !error && chores.length === 0 && <p>No chores saved yet.</p>}
+      {chores.length > 0 && (
+        <ul className="space-y-3" aria-label="Current chores">
+          {chores.map((chore) => (
+            <li key={chore.id} className="rounded border p-4">
+              <h2 className="break-words text-lg font-medium">{chore.description}</h2>
+              <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="font-semibold">Due date</dt>
+                  <dd><time dateTime={chore.due_date}>{chore.due_date}</time></dd>
+                </div>
+                <div>
+                  <dt className="font-semibold">Status</dt>
+                  <dd>{statusLabels[chore.status]}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold">Points</dt>
+                  <dd>{chore.points}</dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
   );
 }
