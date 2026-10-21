@@ -1,67 +1,291 @@
-import Image from "next/image";
+"use client";
+
+import { FormEvent, useEffect, useMemo, useState } from "react";
+
+type Status = "todo" | "in_progress" | "done";
+
+type Chore = {
+  id: number;
+  description: string;
+  due_date: string;
+  status: Status;
+  points: number;
+};
+
+const API = "http://127.0.0.1:8000/api/chores/";
+
+const COLUMNS: { key: Status; label: string }[] = [
+  { key: "todo", label: "To do" },
+  { key: "in_progress", label: "In progress" },
+  { key: "done", label: "Done" },
+];
+
+function todayISO() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function formatDue(iso: string, today: string) {
+  const [year, month, day] = iso.split("-");
+  const label = `${MONTHS[Number(month) - 1]} ${Number(day)}`;
+  if (today && year !== today.slice(0, 4)) return `${label}, ${year}`;
+  return label;
+}
+
+function isLate(iso: string, status: Status, today: string) {
+  if (status === "done" || !today) return false;
+  return iso < today;
+}
+
+async function errorText(res: Response) {
+  try {
+    const data = await res.json();
+    const first = data && typeof data === "object" ? Object.values(data)[0] : null;
+    if (Array.isArray(first) && first[0]) return String(first[0]);
+    if (typeof first === "string") return first;
+  } catch {
+    // Response was not JSON.
+  }
+  return "That didn't work.";
+}
 
 export default function Home() {
+  const [chores, setChores] = useState<Chore[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [note, setNote] = useState("");
+  const [description, setDescription] = useState("");
+  const [due, setDue] = useState("");
+  const [today, setToday] = useState("");
+  const [points, setPoints] = useState("1");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+    setToday(todayISO());
+    setDue(todayISO());
+
+    async function load() {
+      try {
+        const res = await fetch(API);
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as Chore[];
+        if (!ignore) {
+          setChores(data);
+          setNote("");
+        }
+      } catch {
+        if (!ignore) {
+          setNote("Can't load chores. Is the Django server running?");
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const earned = useMemo(
+    () =>
+      chores
+        .filter((chore) => chore.status === "done")
+        .reduce((sum, chore) => sum + chore.points, 0),
+    [chores],
+  );
+
+  async function addChore(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const text = description.trim();
+    if (!text || saving) return;
+
+    const value = Math.max(0, Math.floor(Number(points) || 0));
+    setSaving(true);
+    setNote("");
+
+    try {
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: text,
+          due_date: due,
+          points: value,
+          status: "todo",
+        }),
+      });
+      if (!res.ok) throw new Error(await errorText(res));
+      const created = (await res.json()) as Chore;
+      setChores((current) => [...current, created]);
+      setDescription("");
+      setPoints("1");
+      if (today) setDue(today);
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Couldn't add that chore.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeStatus(chore: Chore, status: Status) {
+    if (status === chore.status) return;
+    setChores((current) =>
+      current.map((item) => (item.id === chore.id ? { ...item, status } : item)),
+    );
+
+    const res = await fetch(`${API}${chore.id}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!res.ok) {
+      setChores((current) =>
+        current.map((item) => (item.id === chore.id ? chore : item)),
+      );
+      setNote("Couldn't update that chore.");
+    }
+  }
+
+  async function remove(chore: Chore) {
+    if (!window.confirm(`Remove "${chore.description}"?`)) return;
+    const previous = chores;
+    setChores((current) => current.filter((item) => item.id !== chore.id));
+
+    const res = await fetch(`${API}${chore.id}/`, { method: "DELETE" });
+    if (!res.ok) {
+      setChores(previous);
+      setNote("Couldn't remove that chore.");
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="page">
+      <main className="sheet">
+        <header>
+          <div>
+            <h1>Scrumify</h1>
+            <p>House chores</p>
+          </div>
+          <p className="score">
+            {earned} {earned === 1 ? "point" : "points"} done
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+        </header>
+
+        <form className="add" onSubmit={addChore}>
+          <label className="grow">
+            Chore
+            <input
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Take out the trash"
+              maxLength={255}
+              required
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </label>
+          <label>
+            Due
+            <input
+              type="date"
+              value={due}
+              onChange={(event) => setDue(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Points
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={points}
+              onChange={(event) => setPoints(event.target.value)}
+            />
+          </label>
+          <button type="submit" disabled={saving}>
+            {saving ? "Adding" : "Add"}
+          </button>
+        </form>
+
+        {note ? <p className="note">{note}</p> : null}
+        {loading ? <p className="empty">Loading</p> : null}
+
+        <div className="board">
+          {COLUMNS.map((column) => {
+            const items = chores
+              .filter((chore) => chore.status === column.key)
+              .sort(
+                (a, b) =>
+                  a.due_date.localeCompare(b.due_date) || a.id - b.id,
+              );
+
+            return (
+              <section className="col" key={column.key}>
+                <h2>
+                  <span className={`dot ${column.key}`} />
+                  {column.label}
+                  <span className="count">{items.length}</span>
+                </h2>
+                {!loading && items.length === 0 ? (
+                  <p className="empty">Nothing here</p>
+                ) : null}
+                {items.map((chore) => {
+                  const late = isLate(chore.due_date, chore.status, today);
+                  return (
+                    <article className="chore" key={chore.id}>
+                      <h3>{chore.description}</h3>
+                      <p className="meta">
+                        <span className={late ? "late" : undefined}>
+                          {late ? "Late, " : ""}
+                          {formatDue(chore.due_date, today)}
+                        </span>
+                        <span>{chore.points} pts</span>
+                      </p>
+                      <div className="actions">
+                        <select
+                          value={chore.status}
+                          aria-label={`Status for ${chore.description}`}
+                          onChange={(event) =>
+                            changeStatus(chore, event.target.value as Status)
+                          }
+                        >
+                          <option value="todo">To do</option>
+                          <option value="in_progress">In progress</option>
+                          <option value="done">Done</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="remove"
+                          onClick={() => remove(chore)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </section>
+            );
+          })}
         </div>
       </main>
     </div>
