@@ -1,9 +1,11 @@
 from django.urls import path
-from .views import chore_delete, createChoreView
+from . import views
 
 urlpatterns = [
-    path("chores/", createChoreView.as_view(), name="chore-create"),
+    path("chores/", views.chore_list, name="chore-create"),
     # Keep both route names for the shared GET/POST endpoint.
-    path("chores/", createChoreView.as_view(), name="chore-list"),
-    path("chores/<int:pk>/", chore_delete, name="chore-delete"),
+    path("chores/", views.chore_list, name="chore-list"),
+    path("chores/<int:chore_id>/", views.chore_detail, name="chore-detail"),
+    # Keep this name for compatibility with earlier tests and clients.
+    path("chores/<int:chore_id>/", views.chore_detail, name="chore-delete"),
 ]
