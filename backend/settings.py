@@ -59,6 +59,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173"
 ]
 
+# Accept requests originating from the local Next.js page; a valid CSRF token
+# is still required for deletion, even when the origin is trusted.
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
 ROOT_URLCONF = "backend.urls"
 
 TEMPLATES = [
