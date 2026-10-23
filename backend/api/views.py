@@ -6,6 +6,8 @@ from .serializers import ChoreSerializer
 
 @api_view(["GET", "POST"])
 def chore_list(request):
+    # Only get the chores that belong to the signed-in user
+    chores = Chore.objects.filter(owner=request.user).order_by("id")
     if request.method == "POST":
         serializer = ChoreSerializer(data=request.data)
         if serializer.is_valid():
@@ -20,8 +22,10 @@ def chore_list(request):
 
 @api_view(["GET", "PUT", "DELETE"])
 def chore_detail(request, chore_id):
+    # Look for the chore among the signed-in user's chores only, so another
+    # account's chore is treated the same as a chore that doesn't exist
     try:
-        chore = Chore.objects.get(id=chore_id)
+        chore = Chore.objects.get(id=chore_id, owner=request.user)
     except Chore.DoesNotExist:
         return Response({"error": "Chore not found"}, status=404)
 
