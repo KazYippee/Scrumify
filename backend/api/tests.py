@@ -3,6 +3,8 @@ import datetime
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APITestCase
+from django.urls import reverse
+
 from .models import Chore
 
 
@@ -81,9 +83,8 @@ class ChoreApiTests(APITestCase):
     def test_list_chores(self):
         response = self.client.get("/api/chores/")
         self.assertEqual(response.status_code, 200)
-        # Alice only sees her own chore, not Bob's
-        self.assertEqual(len(response.json()), 1)
-        self.assertEqual(response.json()[0]["description"], "Mow the lawn")
+        self.assertEqual(len(response.json()["chores"]), 1)
+        self.assertEqual(response.json()["chores"][0]["description"], "Mow the lawn")
 
     def test_edit_chore(self):
         new_values = {
@@ -171,3 +172,49 @@ class ChoreApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 400)
+
+
+class ChoreDeleteTests(TestCase):
+    def setUp(self):
+        self.chore = Chore.objects.create(
+            description="Wash dishes", due_date=datetime.date(2026, 10, 21)
+        )
+        self.delete_url = reverse("chore-delete", args=[self.chore.pk])
+
+    def test_list_returns_chores(self):
+        response = self.client.get(reverse("chore-list"))
+        self.assertEqual(response.json()["chores"], [
+            {
+                "id": self.chore.pk,
+                "description": self.chore.description,
+                "due_date": "2026-10-21",
+                "status": "todo",
+                "points": 0,
+            }
+        ])
+
+    def test_get_returns_chore(self):
+        response = self.client.get(self.delete_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], self.chore.pk)
+
+    def test_delete_updates_list_and_preserves_other_chores(self):
+        other = Chore.objects.create(
+            description="Vacuum", due_date=datetime.date(2026, 10, 22)
+        )
+        response = self.client.delete(self.delete_url)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Chore.objects.filter(pk=self.chore.pk).exists())
+        self.assertEqual(self.client.get(reverse("chore-list")).json()["chores"], [
+            {
+                "id": other.pk,
+                "description": other.description,
+                "due_date": "2026-10-22",
+                "status": "todo",
+                "points": 0,
+            }
+        ])
+
+    def test_missing_chore_returns_404(self):
+        url = reverse("chore-delete", args=[self.chore.pk + 1])
+        self.assertEqual(self.client.delete(url).status_code, 404)
