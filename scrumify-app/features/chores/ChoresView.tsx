@@ -7,6 +7,7 @@ import SignInForm from "./SignInForm";
 import { useState } from "react";
 import { useAuth } from "./useAuth";
 import { useChores } from "./useChores";
+import { useToday } from "./useToday";
 import type { ChoreForm } from "./types";
 
 export default function ChoresView() {
@@ -22,6 +23,7 @@ function SignedInChores({ token, onSignOut }: { token: string; onSignOut: () => 
   // The useChores hook handles the data and requests, this component handles the visible part
   const { chores, loading, error, refreshChores, saveChore, saving, saveError, clearSaveError } = useChores(token, onSignOut);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const today = useToday();
 
   async function saveEdits(choreId: number, form: ChoreForm) {
     if (await saveChore(choreId, form)) setEditingId(null);
@@ -61,7 +63,7 @@ function SignedInChores({ token, onSignOut }: { token: string; onSignOut: () => 
                 />
               </li>
             ) : (
-              <ChoreCard key={chore.id} chore={chore} saving={saving}
+              <ChoreCard key={chore.id} chore={chore} saving={saving} today={today}
                 onEdit={() => { setEditingId(chore.id); clearSaveError(); }} />
             )
           ))}
