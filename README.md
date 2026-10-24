@@ -155,5 +155,13 @@ The list shows each chore's description, due date, status, and points.
 Chores saved through the API or admin page appear when you return to the app.
 Select Refresh chores to load changes while the app stays open.
 Reopening the app loads saved chores from the Django database.
+The Next.js application also lets you edit existing chores with the Edit button.
 Next.js sends API requests to Django through its `/api/` proxy.
-Django provides `GET /api/chores/` and `POST /api/chores/`.
+
+The Django server has these API routes:
+
+- `GET /api/chores/`: list every chore.
+- `POST /api/chores/`: create one chore.
+- `GET /api/chores/<id>/`: get one chore.
+- `PUT /api/chores/<id>/`: change one chore.
+- `DELETE /api/chores/<id>/`: delete one chore.
