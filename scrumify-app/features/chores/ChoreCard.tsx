@@ -1,4 +1,4 @@
-// Displays one chore's description, due date, status, and points.
+// Displays one chore's description, due date, status, and points
 import type { Chore } from "./types";
 
 // Convert the status from DJANGO into the text shown on the page
@@ -8,8 +8,14 @@ const statusLabels = {
   done: "Done",
 };
 
-export default function ChoreCard({ chore }: { chore: Chore }) {
-  // The chore is passed in by ChoresView. This component only displays its data.
+type ChoreCardProps = {
+  chore: Chore;
+  onEdit: () => void;
+  saving: boolean;
+};
+
+export default function ChoreCard({ chore, onEdit, saving }: ChoreCardProps) {
+  // The chore is passed in by ChoresView This component only displays its data
   return (
     <li className="rounded border p-4">
       <h2 className="break-words text-lg font-medium">{chore.description}</h2>
@@ -27,6 +33,9 @@ export default function ChoreCard({ chore }: { chore: Chore }) {
           <dd>{chore.points}</dd>
         </div>
       </dl>
+      <button className="mt-2 rounded border px-3 py-1" type="button" onClick={onEdit} disabled={saving}>
+        Edit
+      </button>
     </li>
   );
 }

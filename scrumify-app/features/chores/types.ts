@@ -6,3 +6,6 @@ export type Chore = {
   status: "todo" | "in_progress" | "done";
   points: number;
 };
+
+// Editing sends the editable fields, while DJANGO keeps the existing ID
+export type ChoreForm = Omit<Chore, "id">;
