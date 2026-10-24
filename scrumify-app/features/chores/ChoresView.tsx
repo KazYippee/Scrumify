@@ -21,7 +21,7 @@ export default function ChoresView() {
 
 function SignedInChores({ token, onSignOut }: { token: string; onSignOut: () => void }) {
   // The useChores hook handles the data and requests, this component handles the visible part
-  const { chores, loading, error, refreshChores, saveChore, saving, saveError, clearSaveError } = useChores(token, onSignOut);
+  const { chores, loading, error, refreshChores, saveChore, completeChore, completingId, saving, saveError, clearSaveError } = useChores(token, onSignOut);
   const [editingId, setEditingId] = useState<number | null>(null);
   const today = useToday();
 
@@ -63,7 +63,8 @@ function SignedInChores({ token, onSignOut }: { token: string; onSignOut: () => 
                 />
               </li>
             ) : (
-              <ChoreCard key={chore.id} chore={chore} saving={saving} today={today}
+              <ChoreCard key={chore.id} chore={chore} saving={saving}
+                today={today} completingId={completingId} onComplete={completeChore}
                 onEdit={() => { setEditingId(chore.id); clearSaveError(); }} />
             )
           ))}

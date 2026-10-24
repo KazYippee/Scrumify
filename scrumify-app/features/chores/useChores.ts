@@ -1,4 +1,4 @@
-// Loads and edits the signed-in user's chores through DJANGO, with refresh and error handling
+// Loads, edits, and completes the signed-in user's chores through DJANGO, with refresh and error handling
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -13,6 +13,7 @@ export function useChores(token: string, onUnauthorized: () => void) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [completingId, setCompletingId] = useState<number | null>(null);
   const savePending = useRef(false);
   const loadController = useRef<AbortController | undefined>(undefined);
   const saveController = useRef<AbortController | undefined>(undefined);
@@ -81,7 +82,7 @@ export function useChores(token: string, onUnauthorized: () => void) {
     setRefreshVersion((current) => current + 1);
   }
 
-  async function saveChore(choreId: number, form: ChoreForm) {
+  async function updateChore(choreId: number, changes: ChoreForm | Pick<Chore, "status">, method: "PUT" | "PATCH") {
     // Block repeated saves immediately, without waiting for the next render
     if (savePending.current) return false;
     savePending.current = true;
@@ -92,9 +93,9 @@ export function useChores(token: string, onUnauthorized: () => void) {
     saveController.current = requestController;
     try {
       const response = await fetch(`/api/chores/${choreId}/`, {
-        method: "PUT",
+        method,
         headers: { "Content-Type": "application/json", Authorization: `Token ${token}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify(changes),
         signal: requestController.signal,
       });
       // Signing out cancels this request so its response cannot affect a later login
@@ -106,7 +107,11 @@ export function useChores(token: string, onUnauthorized: () => void) {
       setChores((current) => current.map((chore) => chore.id === savedChore.id ? savedChore : chore));
       return true;
     } catch {
-      if (!requestController.signal.aborted) setSaveError("Could not save the chore. Check the fields and try again.");
+      if (!requestController.signal.aborted) {
+        setSaveError(method === "PATCH"
+          ? "Could not mark this chore complete. Try again."
+          : "Could not save the chore. Check the fields and try again.");
+      }
       return false;
     } finally {
       savePending.current = false;
@@ -115,7 +120,22 @@ export function useChores(token: string, onUnauthorized: () => void) {
     }
   }
 
+  function saveChore(choreId: number, form: ChoreForm) {
+    return updateChore(choreId, form, "PUT");
+  }
+
+  async function completeChore(choreId: number) {
+    if (savePending.current) return;
+    setCompletingId(choreId);
+    try {
+      // PATCH sends only the new status, preserving the description, deadline, and points
+      await updateChore(choreId, { status: "done" }, "PATCH");
+    } finally {
+      setCompletingId(null);
+    }
+  }
+
   function clearSaveError() { setSaveError(""); }
 
-  return { chores, loading, error, refreshChores, saveChore, saving, saveError, clearSaveError };
+  return { chores, loading, error, refreshChores, saveChore, completeChore, completingId, saving, saveError, clearSaveError };
 }
