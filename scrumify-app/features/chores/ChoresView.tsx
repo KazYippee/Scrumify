@@ -25,6 +25,11 @@ function SignedInChores({ token, onSignOut }: { token: string; onSignOut: () => 
   const [editingId, setEditingId] = useState<number | null>(null);
   const today = useToday();
 
+  // filters out the completed chores, and sorts them by date chronologically
+  const incompleteChores = chores
+    .filter((chore) => chore.status !== "done")
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
   async function saveEdits(choreId: number, form: ChoreForm) {
     if (await saveChore(choreId, form)) setEditingId(null);
   }
@@ -48,6 +53,53 @@ function SignedInChores({ token, onSignOut }: { token: string; onSignOut: () => 
       {loading && <p>Loading chores...</p>}
       {error && <p role="alert">{error}</p>}
       {saveError && <p role="alert">{saveError}</p>}
+      
+            {error && <p role="alert">{error}</p>}
+      {saveError && <p role="alert">{saveError}</p>}
+      
+      {!loading && !error && (
+        <section className="rounded-xl border p-5 bg-gray-50/50 space-y-4 mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Chores List</h2>
+            <p className="text-sm text-gray-500">Upcoming chores.</p>
+          </div>
+          {incompleteChores.length === 0 ? (
+            <p className="text-sm text-gray-500 italic">No upcoming or incomplete responsibilities!</p>
+          ) : (
+            <ul className="divide-y divide-gray-200 border rounded-lg bg-white overflow-hidden shadow-sm" aria-label="Responsibilities list">
+              {incompleteChores.map((chore) => (
+                <li key={chore.id} className="p-4 flex items-center justify-between hover:bg-gray-50/50 transition">
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-800">{chore.description}</p>
+                    <div className="flex flex-wrap gap-2 text-xs font-medium">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                        Due Date: {chore.due_date}
+                      </span>
+                      <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded">
+                        Time: {chore.due_time || "12:00 PM"}
+                      </span>
+                      <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded">
+                        Points: {chore.points} pts
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${
+                    chore.status === "in_progress" 
+                      ? "bg-amber-100 text-amber-800 border-amber-200" 
+                      : "bg-gray-100 text-gray-800 border-gray-200"
+                  }`}>
+                    {chore.status === "in_progress" ? "In Progress" : "To Do"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {!loading && !error && chores.length === 0 && <p>No chores saved yet.</p>}
+
+
       {!loading && !error && chores.length === 0 && <p>No chores saved yet.</p>}
       {chores.length > 0 && (
         <ul className="space-y-3" aria-label="Current chores">
